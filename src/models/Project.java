@@ -11,6 +11,13 @@ package models;
  * OOP CONCEPT - ENCAPSULATION:
  *   All fields are private; access is only possible through the public
  *   getters/setters below, protecting the object's internal state.
+ *
+ * OOP CONCEPT - COMPOSITION:
+ *   A Project "has-a" collection of Task objects. Project does not extend
+ *   Task (that would be wrong - a project is not a task), it simply owns
+ *   and manages an array of them, the same way AccountManager owns Accounts
+ *   in the banking lab, just nested one level deeper (per-project instead
+ *   of system-wide).
  */
 public abstract class Project {
 
@@ -20,6 +27,14 @@ public abstract class Project {
     private String description;
     private double budget;
     private int teamSize;
+
+    // COMPOSITION: fixed-size array of tasks owned by this specific project.
+    // DSA NOTE: a plain array is used here (per the lab's requirement); adding
+    // a task is O(1) (append at taskCount), finding one by ID is O(n) linear
+    // search - acceptable given the small expected size per project.
+    private Task[] tasks;
+    private int taskCount;
+    private static final int MAX_TASKS_PER_PROJECT = 50;
 
     // STATIC FIELD: shared by every Project object (of any subtype), used to
     // auto-generate unique, sequential project IDs: PRJ001, PRJ002, PRJ003...
@@ -32,6 +47,8 @@ public abstract class Project {
         this.description = description;
         this.budget = budget;
         this.teamSize = teamSize;
+        this.tasks = new Task[MAX_TASKS_PER_PROJECT];
+        this.taskCount = 0;
     }
 
     // ---- Getters and setters (ENCAPSULATION) ----
@@ -101,5 +118,108 @@ public abstract class Project {
                 id, name, getProjectType(), teamSize, budget);
         System.out.println("     | Description: " + description);
         System.out.println("     | " + getProjectDetails());
+    }
+
+    // ---- Task management (COMPOSITION in action) ----
+
+    /**
+     * Adds a task to this project's array.
+     * O(1) - simply places the task at the next free index.
+     */
+    public boolean addTask(Task task) {
+        if (taskCount >= tasks.length) {
+            System.out.println("Task storage for this project is full.");
+            return false;
+        }
+        tasks[taskCount] = task;
+        taskCount++;
+        return true;
+    }
+
+    /**
+     * DSA CONCEPT - LINEAR SEARCH: scans this project's task array from the
+     * start until a matching ID is found. O(n) where n is this project's
+     * own task count (not the whole system) - deliberately scoped, since a
+     * task only needs to be searched for within its owning project here.
+     */
+    public Task findTask(String taskId) {
+        for (int i = 0; i < taskCount; i++) {
+            if (tasks[i].getId().equalsIgnoreCase(taskId)) {
+                return tasks[i];
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Removes a task by ID, shifting later elements left by one to keep the
+     * array dense (no holes) - required so taskCount always matches the
+     * number of real, non-null entries at the front of the array.
+     */
+    public boolean removeTask(String taskId) {
+        for (int i = 0; i < taskCount; i++) {
+            if (tasks[i].getId().equalsIgnoreCase(taskId)) {
+                for (int j = i; j < taskCount - 1; j++) {
+                    tasks[j] = tasks[j + 1];
+                }
+                tasks[taskCount - 1] = null;
+                taskCount--;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Task[] getTasks() {
+        // Return only the "live" portion of the array (0..taskCount-1) as a
+        // right-sized copy, so callers can never see stale/null trailing slots
+        // or accidentally corrupt this project's internal array reference.
+        Task[] result = new Task[taskCount];
+        System.arraycopy(tasks, 0, result, 0, taskCount);
+        return result;
+    }
+
+    public int getTaskCount() {
+        return taskCount;
+    }
+
+    /**
+     * Counts how many of this project's tasks are completed.
+     * OOP CONCEPT - POLYMORPHISM/INTERFACE USE: calls isCompleted() through
+     * the Completable contract - Project doesn't need to know anything about
+     * TaskStatus internals to do this counting.
+     */
+    public int getCompletedTaskCount() {
+        int completed = 0;
+        for (int i = 0; i < taskCount; i++) {
+            if (tasks[i].isCompleted()) {
+                completed++;
+            }
+        }
+        return completed;
+    }
+
+    public int getPendingTaskCount() {
+        return taskCount - getCompletedTaskCount();
+    }
+
+    /**
+     * Calculates the percentage of this project's tasks that are completed,
+     * rounded to 2 decimal places as required by US-4.1.
+     *
+     * EDGE CASE HANDLED: a project with zero tasks would otherwise divide by
+     * zero (producing NaN in Java for a double 0.0/0.0) - we explicitly
+     * return 0.0 instead, since "0 of 0 tasks complete" is not meaningfully
+     * "100% done" nor an error state; it is simply "nothing to report yet".
+     */
+    public double getCompletionPercentage() {
+        if (taskCount == 0) {
+            return 0.0;
+        }
+        double rawPercentage = (getCompletedTaskCount() * 100.0) / taskCount;
+        // Round to 2 decimal places: multiply, round to nearest whole number,
+        // then divide back down - a common, simple rounding technique that
+        // avoids pulling in java.math.BigDecimal for a case this simple.
+        return Math.round(rawPercentage * 100.0) / 100.0;
     }
 }
