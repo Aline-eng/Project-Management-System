@@ -36,14 +36,14 @@ public class ProjectService {
     public Project[] getProjectsByType(String type) {
         int matchCount = 0;
         for (int i = 0; i < projectCount; i++) {
-            if (projects[i].getProjectType().equalsIgnoreCase(type)) {
+            if (projects[i].getProjectDetails().equalsIgnoreCase(type)) {
                 matchCount++;
             }
         }
         Project[] result = new Project[matchCount];
         int idx = 0;
         for (int i = 0; i < projectCount; i++) {
-            if (projects[i].getProjectType().equalsIgnoreCase(type)) {
+            if (projects[i].getProjectDetails().equalsIgnoreCase(type)) {
                 result[idx++] = projects[i];
             }
         }
@@ -70,19 +70,4 @@ public class ProjectService {
     public int getProjectCount() {
         return projectCount;
     }
-    public boolean removeProject(String projectId) {
-        for (int i = 0; i < projectCount; i++) {
-            if (projects[i].getId().equalsIgnoreCase(projectId)) {
-                for (int j = i; j < projectCount - 1; j++) {
-                    projects[j] = projects[j + 1];
-                }
-                projects[projectCount - 1] = null;
-                projectCount--;
-                return true;
-            }
-        }
-        return false;
-    }
-
-
 }
