@@ -1,43 +1,17 @@
 package models;
 
-/**
- * Abstract base class representing a generic Project in the system.
- *
- * OOP CONCEPT - ABSTRACTION:
- *   Project can never be instantiated directly ("new Project(...)" is illegal).
- *   It defines the data and behavior every project shares, and forces every
- *   concrete subclass to implement getProjectDetails() in its own way.
- *
- * OOP CONCEPT - ENCAPSULATION:
- *   All fields are private; access is only possible through the public
- *   getters/setters below, protecting the object's internal state.
- *
- * OOP CONCEPT - COMPOSITION:
- *   A Project "has-a" collection of Task objects. Project does not extend
- *   Task (that would be wrong - a project is not a task), it simply owns
- *   and manages an array of them, the same way AccountManager owns Accounts
- *   in the banking lab, just nested one level deeper (per-project instead
- *   of system-wide).
- */
 public abstract class Project {
 
-    // ENCAPSULATION: private fields - no outside class can touch these directly
     private String id;
     private String name;
     private String description;
     private double budget;
     private int teamSize;
 
-    // COMPOSITION: fixed-size array of tasks owned by this specific project.
-    // DSA NOTE: a plain array is used here (per the lab's requirement); adding
-    // a task is O(1) (append at taskCount), finding one by ID is O(n) linear
-    // search - acceptable given the small expected size per project.
     private Task[] tasks;
     private int taskCount;
     private static final int MAX_TASKS_PER_PROJECT = 50;
 
-    // STATIC FIELD: shared by every Project object (of any subtype), used to
-    // auto-generate unique, sequential project IDs: PRJ001, PRJ002, PRJ003...
     private static int projectCounter = 0;
 
     protected Project(String name, String description, double budget, int teamSize) {
@@ -50,8 +24,6 @@ public abstract class Project {
         this.tasks = new Task[MAX_TASKS_PER_PROJECT];
         this.taskCount = 0;
     }
-
-    // ---- Getters and setters (ENCAPSULATION) ----
 
     public String getId() {
         return id;
@@ -90,17 +62,11 @@ public abstract class Project {
     }
 
     /**
-     * ABSTRACTION: each project type (Software/Hardware) reports its own
-     * type-specific detail line. No default implementation exists here -
-     * every subclass MUST provide one.
+     * Returns the project's type label (e.g. "Software", "Hardware"), backed
+     * by the ProjectType enum. Abstract - each subclass returns its own
+     * constant, which is the polymorphism this method exists to demonstrate.
      */
     public abstract String getProjectDetails();
-
-    /**
-     * Returns the project "type" label used throughout the console UI
-     * (e.g. "Software", "Hardware"). Also abstract - defined per subclass.
-     */
-    public abstract String getProjectType();
 
     /**
      * Concrete (non-abstract) method - identical for every project type,
@@ -108,16 +74,15 @@ public abstract class Project {
      * instead of being duplicated in SoftwareProject and HardwareProject.
      *
      * OOP CONCEPT - POLYMORPHISM:
-     *   This method calls getProjectDetails() and getProjectType() on "this" -
-     *   even though displayProject() is written here in the parent class,
-     *   Java calls the OVERRIDDEN version from whichever concrete subclass
-     *   the actual object is. This is runtime (dynamic) polymorphism.
+     *   This method calls getProjectDetails() on "this" - even though
+     *   displayProject() is written here in the parent class, Java calls the
+     *   OVERRIDDEN version from whichever concrete subclass the actual
+     *   object is. This is runtime (dynamic) polymorphism.
      */
     public void displayProject() {
         System.out.printf("%-4s | %-21s | %-10s | %-9d | $%,.2f%n",
-                id, name, getProjectType(), teamSize, budget);
+                id, name, getProjectDetails(), teamSize, budget);
         System.out.println("     | Description: " + description);
-        System.out.println("     | " + getProjectDetails());
     }
 
     // ---- Task management (COMPOSITION in action) ----
