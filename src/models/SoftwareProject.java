@@ -8,35 +8,16 @@ package models;
  *   getters/setters/displayProject() from Project without rewriting them.
  *
  * OOP CONCEPT - POLYMORPHISM (overriding):
- *   Supplies its own getProjectDetails() and getProjectType(), each returning
- *   Software-specific information.
+ *   Supplies its own getProjectDetails(), returning the Software type label.
  */
 public class SoftwareProject extends Project {
 
-    // Field specific to SoftwareProject only - HardwareProject has no use for this,
-    // which is exactly why it lives in the subclass and not in the parent Project class.
-    private String primaryLanguage;
-
-    public SoftwareProject(String name, String description, double budget, int teamSize, String primaryLanguage) {
+    public SoftwareProject(String name, String description, double budget, int teamSize) {
         super(name, description, budget, teamSize);
-        this.primaryLanguage = primaryLanguage;
-    }
-
-    public String getPrimaryLanguage() {
-        return primaryLanguage;
-    }
-
-    public void setPrimaryLanguage(String primaryLanguage) {
-        this.primaryLanguage = primaryLanguage;
     }
 
     @Override
     public String getProjectDetails() {
-        return "Primary Language: " + primaryLanguage;
-    }
-
-    @Override
-    public String getProjectType() {
-        return "Software";
+        return ProjectType.SOFTWARE.getLabel();
     }
 }
