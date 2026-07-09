@@ -1,23 +1,19 @@
 import java.util.Scanner;
 
-import models.AdminUser;
-import models.HardwareProject;
-import models.Project;
-import models.RegularUser;
-import models.SoftwareProject;
+import models.user.AdminUser;
+import models.project.HardwareProject;
+import models.project.Project;
+import models.user.RegularUser;
+import models.project.SoftwareProject;
 import models.Task;
-import models.TaskStatus;
-import models.User;
+import enums.TaskStatus;
+import models.user.User;
 import services.ProjectService;
 import services.ReportService;
 import services.TaskService;
 import utils.ConsoleMenu;
 import utils.ValidationUtils;
 
-/**
- * Application entry point - the full menu-driven console UI, wiring together
- * every model and service built in Phases 1 and 2.
- */
 public class Main {
 
     private static final Scanner scanner = new Scanner(System.in);
@@ -25,7 +21,6 @@ public class Main {
     private static final TaskService taskService = new TaskService(projectService);
     private static final ReportService reportService = new ReportService(projectService);
 
-    // Simple in-memory user list to support "Switch User" (Epic 3).
     private static final User[] users = new User[2];
     private static User currentUser;
 
@@ -113,7 +108,7 @@ public class Main {
         } else if (typeChoice == 2) {
             project = new HardwareProject(name, description, budget, teamSize);
         } else {
-            System.out.println("Invalid project type selected.");
+            System.out.println("❌ Invalid project type selected.");
             return;
         }
 

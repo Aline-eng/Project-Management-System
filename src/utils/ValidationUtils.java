@@ -1,6 +1,6 @@
 package utils;
 
-import models.TaskStatus;
+import enums.TaskStatus;
 
 import java.util.Scanner;
 
