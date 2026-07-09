@@ -190,7 +190,7 @@ public class Main {
 
             System.out.println("\nAssociated Tasks:");
             ConsoleMenu.printDivider();
-            System.out.printf("%-4s | %-19s | %s%n", "ID", "TASK NAME", "STATUS");
+            System.out.printf("%-4s | %-19s | %-12s | %s%n", "ID", "TASK NAME", "STATUS", "ASSIGNED TO");
             ConsoleMenu.printDivider();
 
             Task[] tasks = project.getTasks();
@@ -258,11 +258,33 @@ public class Main {
 
         TaskStatus status = ValidationUtils.readValidStatus(
                 scanner, "Enter initial status (Pending/In Progress/Completed): ");
+        User assignedTo = selectUser();
 
-        Task task = new Task(name, status);
+        Task task = new Task(name, status, assignedTo);
         project.addTask(task);
         System.out.println("\n✓ Task \"" + name + "\" added successfully to Project " + project.getId() + "!");
         ConsoleMenu.pause(scanner);
+    }
+
+    /**
+     * Prompts for a user ID and returns the matching User (Feature 3: "Assign
+     * users to projects or tasks"). Same linear-search-and-validate pattern
+     * used everywhere else IDs are looked up (ProjectService, Project).
+     */
+    private static User selectUser() {
+        System.out.println("\nAvailable Users:");
+        for (User user : users) {
+            System.out.println(user.getId() + " - " + user.getName() + " (" + user.getRole() + ")");
+        }
+        while (true) {
+            String input = ValidationUtils.readNonEmptyString(scanner, "Assign to user ID: ");
+            for (User user : users) {
+                if (user.getId().equalsIgnoreCase(input)) {
+                    return user;
+                }
+            }
+            System.out.println("❌ Error: No user found with ID \"" + input + "\".");
+        }
     }
 
     private static void updateTaskStatus(Project project) {
@@ -331,13 +353,13 @@ public class Main {
         currentUser = users[0];
 
         Project p1 = new SoftwareProject("Alpha Tracker", "Task tracking app for startups", 15000.00, 5);
-        p1.addTask(new Task("Design Database", TaskStatus.COMPLETED));
-        p1.addTask(new Task("Implement API", TaskStatus.IN_PROGRESS));
+        p1.addTask(new Task("Design Database", TaskStatus.COMPLETED, users[1]));
+        p1.addTask(new Task("Implement API", TaskStatus.IN_PROGRESS, users[0]));
         p1.addTask(new Task("Write Unit Tests", TaskStatus.PENDING));
         projectService.addProject(p1);
 
         Project p2 = new HardwareProject("IoT Sensor Kit", "Sensor prototype for smart devices", 10000.00, 3);
-        p2.addTask(new Task("Design Circuit", TaskStatus.COMPLETED));
+        p2.addTask(new Task("Design Circuit", TaskStatus.COMPLETED, users[0]));
         p2.addTask(new Task("Assemble Prototype", TaskStatus.PENDING));
         projectService.addProject(p2);
 
