@@ -1,6 +1,6 @@
 package services;
 
-import models.Project;
+import models.project.Project;
 
 public class ProjectService {
     private Project[] projects;
