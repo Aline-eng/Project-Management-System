@@ -10,13 +10,6 @@ public class TaskService {
         this.projectService = projectService;
     }
 
-    public boolean addTask(String projectId, Task task) {
-        Project project = projectService.findProject(projectId);
-        if (project == null) {
-            return false;
-        }
-        return project.addTask(task);
-    }
     public Task findTaskAnywhere(String taskId) {
         for (Project project : projectService.getAllProjects()) {
             Task task = project.findTask(taskId);
