@@ -59,7 +59,7 @@ public class Main {
                     System.out.println("\nThank you for using the Java Project Management System!");
                     System.out.println("Goodbye!");
                     running = false;
-                    break;
+                    // break;
                 default:
                     System.out.println("Invalid choice. Please select 1-5.");
             }
@@ -218,7 +218,7 @@ public class Main {
                     break;
                 case 4:
                     viewing = false;
-                    break;
+                    // break;
                 default:
                     System.out.println("Invalid choice.");
             }
@@ -261,11 +261,6 @@ public class Main {
         ConsoleMenu.pause(scanner);
     }
 
-    /**
-     * Prompts for a user ID and returns the matching User (Feature 3: "Assign
-     * users to projects or tasks"). Same linear-search-and-validate pattern
-     * used everywhere else IDs are looked up (ProjectService, Project).
-     */
     private static User selectUser() {
         System.out.println("\nAvailable Users:");
         for (User user : users) {
@@ -290,10 +285,6 @@ public class Main {
             return;
         }
         String taskId = ValidationUtils.readNonEmptyString(scanner, "\nEnter task ID: ");
-        // Routed through TaskService (not project.findTask directly) - demonstrates
-        // the service layer doing real work: task IDs are unique system-wide, so
-        // TaskService can locate the task without needing to trust which project
-        // the caller thinks it belongs to.
         Task task = taskService.findTaskAnywhere(taskId);
         if (task == null || !project.getId().equals(taskService.findProjectOwningTask(taskId).getId())) {
             System.out.println("❌ Error: Task not found in this project.");
