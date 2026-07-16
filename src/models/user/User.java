@@ -1,5 +1,10 @@
 package models.user;
 
+/**
+ * Abstract base class for a system user. Defines the shared identity
+ * (id, name, email, role) every user type has, and leaves permissions
+ * and modify-rights abstract so each role defines its own access level.
+ */
 public abstract class User {
 
     private String id;
@@ -42,8 +47,13 @@ public abstract class User {
         return role;
     }
 
+    /** Human-readable summary of what this role can do, for display. */
     public abstract String getPermissions();
 
+    /**
+     * @return true if this role may update or delete tasks/projects,
+     *         false if it can only view and add
+     */
     public abstract boolean canModify();
 
     public void displayUserInfo() {
