@@ -8,12 +8,18 @@ import models.project.SoftwareProject;
 import models.Task;
 import enums.TaskStatus;
 import models.user.User;
+import enums.ProjectType;
 import services.ProjectService;
 import services.ReportService;
 import services.TaskService;
 import utils.ConsoleMenu;
 import utils.ValidationUtils;
 
+/**
+ * Application entry point: the menu-driven console UI wiring together every
+ * model and service. Responsible for input/output only - business rules and
+ * data live in the model and service classes.
+ */
 public class Main {
 
     private static final Scanner scanner = new Scanner(System.in);
@@ -24,6 +30,7 @@ public class Main {
     private static final User[] users = new User[2];
     private static User currentUser;
 
+    /** Seeds sample data, then loops the main menu until the user exits. */
     public static void main(String[] args) {
         seedSampleData();
         boolean running = true;
@@ -59,7 +66,7 @@ public class Main {
                     System.out.println("\nThank you for using the Java Project Management System!");
                     System.out.println("Goodbye!");
                     running = false;
-                    // break;
+                    break;
                 default:
                     System.out.println("Invalid choice. Please select 1-5.");
             }
@@ -69,6 +76,7 @@ public class Main {
 
     // ================= Epic 1: Project Catalog Management =================
 
+    /** "Manage Projects" submenu: add a new project, or view/filter the catalog. */
     private static void manageProjects() {
         ConsoleMenu.printHeader("PROJECT CATALOG");
         System.out.println("\nOptions:");
@@ -91,6 +99,7 @@ public class Main {
         }
     }
 
+    /** Prompts for project details and creates a Software or Hardware project. */
     private static void addProject() {
         System.out.println("\nProject type:");
         System.out.println("1. Software Project");
@@ -117,6 +126,7 @@ public class Main {
         ConsoleMenu.pause(scanner);
     }
 
+    /** Lists projects (optionally filtered), then offers to drill into one by ID. */
     private static void viewProjectCatalog() {
         ConsoleMenu.printHeader("PROJECT CATALOG");
         System.out.println("\nFilter Options:");
@@ -130,10 +140,10 @@ public class Main {
 
         switch (filterChoice) {
             case 2:
-                results = projectService.getProjectsByType("Software");
+                results = projectService.getProjectsByType(ProjectType.SOFTWARE);
                 break;
             case 3:
-                results = projectService.getProjectsByType("Hardware");
+                results = projectService.getProjectsByType(ProjectType.HARDWARE);
                 break;
             case 4:
                 double min = ValidationUtils.readNonNegativeDouble(scanner, "Enter minimum budget: $");
@@ -167,6 +177,7 @@ public class Main {
         }
     }
 
+    /** Shows one project's full details and tasks, looping its own submenu until "back". */
     private static void viewProjectDetails(String projectId) {
         Project project = projectService.findProject(projectId);
         if (project == null) {
@@ -218,7 +229,7 @@ public class Main {
                     break;
                 case 4:
                     viewing = false;
-                    // break;
+                    break;
                 default:
                     System.out.println("Invalid choice.");
             }
@@ -227,6 +238,7 @@ public class Main {
 
     // ================= Epic 2: Task Operations =================
 
+    /** Entry point for "Manage Tasks" from the main menu: pick a project by ID first. */
     private static void manageTasks() {
         String projectId = ValidationUtils.readNonEmptyString(scanner, "\nEnter assigned project ID: ");
         Project project = projectService.findProject(projectId);
@@ -238,17 +250,15 @@ public class Main {
         viewProjectDetails(projectId);
     }
 
+    /** Prompts for task details (rejecting duplicate names) and adds it to the given project. */
     private static void addTaskToProject(Project project) {
         ConsoleMenu.printHeader("ADD NEW TASK");
         String name = ValidationUtils.readNonEmptyString(scanner, "\nEnter task name: ");
 
-        // Prevent duplicate task names within the same project (US-2.1 requirement).
-        for (Task existing : project.getTasks()) {
-            if (existing.getName().equalsIgnoreCase(name)) {
-                System.out.println("❌ Error: A task with this name already exists in this project.");
-                ConsoleMenu.pause(scanner);
-                return;
-            }
+        if (project.hasTaskNamed(name)) {
+            System.out.println("❌ Error: A task with this name already exists in this project.");
+            ConsoleMenu.pause(scanner);
+            return;
         }
 
         TaskStatus status = ValidationUtils.readValidStatus(
@@ -261,6 +271,7 @@ public class Main {
         ConsoleMenu.pause(scanner);
     }
 
+    /** Prompts for a user ID and returns the matching User, re-prompting until valid. */
     private static User selectUser() {
         System.out.println("\nAvailable Users:");
         for (User user : users) {
@@ -277,6 +288,7 @@ public class Main {
         }
     }
 
+    /** Admin-only: looks up a task by ID within this project and updates its status. */
     private static void updateTaskStatus(Project project) {
         // ROLE-BASED ACCESS (Epic 3): only Admin users may update task status.
         if (!currentUser.canModify()) {
@@ -297,6 +309,7 @@ public class Main {
         ConsoleMenu.pause(scanner);
     }
 
+    /** Admin-only: removes a task by ID (searched system-wide via TaskService). */
     private static void removeTaskFromProject(Project project) {
         // ROLE-BASED ACCESS (Epic 3): only Admin users may delete.
         if (!currentUser.canModify()) {
@@ -316,6 +329,7 @@ public class Main {
 
     // ================= Epic 3: User Management =================
 
+    /** Lets the user pick which of the two seeded users is "logged in." */
     private static void switchUser() {
         System.out.println("\nAvailable Users:");
         for (int i = 0; i < users.length; i++) {
@@ -333,6 +347,7 @@ public class Main {
 
     // ================= Sample data seeding =================
 
+    /** Populates 2 sample users and 5 sample projects with tasks, for demo purposes. */
     private static void seedSampleData() {
         users[0] = new AdminUser("Alice Johnson", "alice.johnson@amalitech.dev");
         users[1] = new RegularUser("Bob Kariuki", "bob.kariuki@amalitech.dev");

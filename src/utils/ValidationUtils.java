@@ -4,10 +4,16 @@ import enums.TaskStatus;
 
 import java.util.Scanner;
 
+/**
+ * Console input readers that loop until a valid value is entered, rather
+ * than crashing or returning a bad value on the first invalid attempt.
+ */
 public final class ValidationUtils {
     private ValidationUtils() {
 
     }
+
+    /** Re-prompts until the user enters a parseable whole number. */
     public static int readInt(Scanner scanner, String prompt) {
         while (true) {
             System.out.print(prompt);
@@ -19,6 +25,7 @@ public final class ValidationUtils {
             }
         }
     }
+    /** Re-prompts until the user enters a whole number greater than 0. */
     public static int readPositiveInt(Scanner scanner, String prompt) {
         while (true) {
             int value = readInt(scanner, prompt);
@@ -29,6 +36,7 @@ public final class ValidationUtils {
             return value;
         }
     }
+    /** Re-prompts until the user enters a number greater than 0. */
     public static double readPositiveDouble(Scanner scanner, String prompt) {
         while (true) {
             System.out.print(prompt);
@@ -45,6 +53,7 @@ public final class ValidationUtils {
             }
         }
     }
+    /** Re-prompts until the user enters a number that is not negative. */
     public static double readNonNegativeDouble(Scanner scanner, String prompt) {
         while (true) {
             System.out.print(prompt);
@@ -61,6 +70,7 @@ public final class ValidationUtils {
             }
         }
     }
+    /** Re-prompts until the user enters a non-blank value. */
     public static String readNonEmptyString(Scanner scanner, String prompt) {
         while (true) {
             System.out.print(prompt);
@@ -72,6 +82,7 @@ public final class ValidationUtils {
             return input;
         }
     }
+    /** Re-prompts until the user enters text matching a valid TaskStatus label. */
     public static TaskStatus readValidStatus(Scanner scanner, String prompt) {
         while (true) {
             System.out.print(prompt);

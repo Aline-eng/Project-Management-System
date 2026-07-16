@@ -4,6 +4,10 @@ import enums.TaskStatus;
 import interfaces.Completable;
 import models.user.User;
 
+/**
+ * A single task belonging to a project, with an auto-generated unique ID,
+ * a status, and an optional assigned user.
+ */
 public class Task implements Completable {
 
     private String id;
@@ -13,10 +17,12 @@ public class Task implements Completable {
 
     private static int taskCounter = 0;
 
+    /** Creates an unassigned task. */
     public Task(String name, TaskStatus status) {
         this(name, status, null);
     }
 
+    /** Creates a task already assigned to a user. */
     public Task(String name, TaskStatus status, User assignedTo) {
         taskCounter++;
         this.id = String.format("TSK%03d", taskCounter);
@@ -54,6 +60,7 @@ public class Task implements Completable {
         return status == TaskStatus.COMPLETED;
     }
 
+    /** Prints one row of a task listing table. */
     public void displayTask() {
         String assignedName = (assignedTo != null) ? assignedTo.getName() : "Unassigned";
         System.out.printf("%-4s | %-19s | %-12s | %s%n", id, name, status.getLabel(), assignedName);

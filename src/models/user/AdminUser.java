@@ -1,5 +1,6 @@
 package models.user;
 
+/** An administrator: full access, including update and delete. */
 public class AdminUser extends User {
 
     public AdminUser(String name, String email) {

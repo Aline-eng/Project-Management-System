@@ -4,12 +4,17 @@ import models.project.Project;
 import models.StatusReport;
 import utils.ConsoleMenu;
 
+/**
+ * Builds and prints completion reports aggregated across every project.
+ */
 public class ReportService {
     private final ProjectService projectService;
 
     public ReportService(ProjectService projectService) {
         this.projectService = projectService;
     }
+
+    /** @return one StatusReport row per project currently in the catalog */
     public StatusReport[] generateReports() {
         Project[] projects = projectService.getAllProjects();
         StatusReport[] reports = new StatusReport[projects.length];
@@ -21,6 +26,7 @@ public class ReportService {
         }
         return reports;
     }
+    /** @return the average completion percentage across all projects, or 0.0 if there are none */
     public double calculateAverageCompletion() {
         Project[] projects = projectService.getAllProjects();
         if (projects.length == 0) {
