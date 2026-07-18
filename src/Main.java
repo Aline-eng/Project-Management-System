@@ -12,6 +12,7 @@ import enums.ProjectType;
 import services.ProjectService;
 import services.ReportService;
 import services.TaskService;
+import services.UserService;
 import utils.ConsoleMenu;
 import utils.ValidationUtils;
 import utils.exceptions.EmptyProjectException;
@@ -32,8 +33,8 @@ public class Main {
     private static final ProjectService projectService = new ProjectService();
     private static final TaskService taskService = new TaskService(projectService);
     private static final ReportService reportService = new ReportService(projectService);
+    private static final UserService userService = new UserService();
 
-    private static final User[] users = new User[2];
     private static User currentUser;
 
     /**
@@ -58,7 +59,7 @@ public class Main {
             System.out.println("1. Manage Projects");
             System.out.println("2. Manage Tasks");
             System.out.println("3. View Status Reports");
-            System.out.println("4. Switch User");
+            System.out.println("4. Manage Users");
             System.out.println("5. Exit");
 
             int choice = ValidationUtils.readInt(scanner, "\nEnter your choice: ");
@@ -74,7 +75,7 @@ public class Main {
                     manageReports();
                     break;
                 case 4:
-                    switchUser();
+                    manageUsers();
                     break;
                 case 5:
                     System.out.println("\nThank you for using the Java Project Management System!");
@@ -304,12 +305,12 @@ public class Main {
     /** Prompts for a user ID and returns the matching User, re-prompting until valid. */
     private static User selectUser() {
         System.out.println("\nAvailable Users:");
-        for (User user : users) {
+        for (User user : userService.getAllUsers()) {
             System.out.println(user.getId() + " - " + user.getName() + " (" + user.getRole() + ")");
         }
         while (true) {
             String input = ValidationUtils.readNonEmptyString(scanner, "Assign to user ID: ");
-            for (User user : users) {
+            for (User user : userService.getAllUsers()) {
                 if (user.getId().equalsIgnoreCase(input)) {
                     return user;
                 }
@@ -359,8 +360,32 @@ public class Main {
 
     // ================= Epic 3: User Management =================
 
-    /** Lets the user pick which of the two seeded users is "logged in." */
+    /** "Manage Users" submenu: switch the active user, or register a new one. */
+    private static void manageUsers() {
+        ConsoleMenu.printHeader("MANAGE USERS");
+        System.out.println("\nOptions:");
+        System.out.println("1. Switch User");
+        System.out.println("2. Add New User");
+        System.out.println("3. Back to Main Menu");
+
+        int choice = ValidationUtils.readInt(scanner, "\nEnter your choice: ");
+        switch (choice) {
+            case 1:
+                switchUser();
+                break;
+            case 2:
+                addUser();
+                break;
+            case 3:
+                return;
+            default:
+                System.out.println("Invalid choice.");
+        }
+    }
+
+    /** Lets the user pick which registered user is "logged in." */
     private static void switchUser() {
+        User[] users = userService.getAllUsers();
         System.out.println("\nAvailable Users:");
         for (int i = 0; i < users.length; i++) {
             System.out.println((i + 1) + ". " + users[i].getName() + " (" + users[i].getRole() + ")");
@@ -371,6 +396,42 @@ public class Main {
             System.out.println("\n✓ Switched to " + currentUser.getName() + " (" + currentUser.getRole() + ")");
         } else {
             System.out.println("Invalid selection - user unchanged.");
+        }
+        ConsoleMenu.pause(scanner);
+    }
+
+    /**
+     * Prompts for a new user's role, name, and email, and registers them.
+     * Role is chosen from a fixed menu so it can never itself be invalid;
+     * email is free text and goes through User's own validation, re-prompting
+     * in place via InvalidUserDataException until it looks like a real email.
+     */
+    private static void addUser() {
+        ConsoleMenu.printHeader("ADD NEW USER");
+        System.out.println("\nRole:");
+        System.out.println("1. Admin");
+        System.out.println("2. Regular");
+        int roleChoice;
+        while (true) {
+            roleChoice = ValidationUtils.readInt(scanner, "Select role (1-2): ");
+            if (roleChoice == 1 || roleChoice == 2) {
+                break;
+            }
+            System.out.println("❌ Error: Please enter 1 or 2.");
+        }
+
+        String name = ValidationUtils.readNonEmptyString(scanner, "Enter user name: ");
+
+        while (true) {
+            String email = ValidationUtils.readNonEmptyString(scanner, "Enter user email: ");
+            try {
+                User newUser = (roleChoice == 1) ? new AdminUser(name, email) : new RegularUser(name, email);
+                userService.addUser(newUser);
+                System.out.println("\n✓ User \"" + name + "\" created successfully. (ID: " + newUser.getId() + ")");
+                break;
+            } catch (InvalidUserDataException e) {
+                ConsoleMenu.printError(e);
+            }
         }
         ConsoleMenu.pause(scanner);
     }
@@ -423,18 +484,20 @@ public class Main {
 
     /** Populates 2 sample users and 5 sample projects with tasks, for demo purposes. */
     private static void seedSampleData() throws InvalidProjectDataException, InvalidUserDataException {
-        users[0] = new AdminUser("Alice Johnson", "alice.johnson@amalitech.dev");
-        users[1] = new RegularUser("Bob Kariuki", "bob.kariuki@amalitech.dev");
-        currentUser = users[0];
+        User alice = new AdminUser("Alice Johnson", "alice.johnson@amalitech.dev");
+        User bob = new RegularUser("Bob Kariuki", "bob.kariuki@amalitech.dev");
+        userService.addUser(alice);
+        userService.addUser(bob);
+        currentUser = alice;
 
         Project p1 = new SoftwareProject("Alpha Tracker", "Task tracking app for startups", 15000.00, 5);
-        p1.addTask(new Task("Design Database", TaskStatus.COMPLETED, users[1]));
-        p1.addTask(new Task("Implement API", TaskStatus.IN_PROGRESS, users[0]));
+        p1.addTask(new Task("Design Database", TaskStatus.COMPLETED, bob));
+        p1.addTask(new Task("Implement API", TaskStatus.IN_PROGRESS, alice));
         p1.addTask(new Task("Write Unit Tests", TaskStatus.PENDING));
         projectService.addProject(p1);
 
         Project p2 = new HardwareProject("IoT Sensor Kit", "Sensor prototype for smart devices", 10000.00, 3);
-        p2.addTask(new Task("Design Circuit", TaskStatus.COMPLETED, users[0]));
+        p2.addTask(new Task("Design Circuit", TaskStatus.COMPLETED, alice));
         p2.addTask(new Task("Assemble Prototype", TaskStatus.PENDING));
         projectService.addProject(p2);
 
