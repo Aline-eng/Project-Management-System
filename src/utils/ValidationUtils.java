@@ -36,6 +36,17 @@ public final class ValidationUtils {
             return value;
         }
     }
+    /** Re-prompts until the user enters a whole number between min and max (inclusive). */
+    public static int readIntInRange(Scanner scanner, String prompt, int min, int max) {
+        while (true) {
+            int value = readInt(scanner, prompt);
+            if (value < min || value > max) {
+                System.out.println("❌ Error: Please enter a number between " + min + " and " + max + ".");
+                continue;
+            }
+            return value;
+        }
+    }
     /** Re-prompts until the user enters a number greater than 0. */
     public static double readPositiveDouble(Scanner scanner, String prompt) {
         while (true) {
