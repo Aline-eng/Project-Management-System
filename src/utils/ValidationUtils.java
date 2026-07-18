@@ -82,6 +82,22 @@ public final class ValidationUtils {
             return input;
         }
     }
+    /**
+     * Re-prompts until the user enters text containing at least one letter -
+     * rejects blank input and input that is only digits/symbols (e.g. "12345"
+     * is not a reasonable project or task name). Digits are still allowed
+     * as part of the text (e.g. "Alpha Tracker 2024" is fine).
+     */
+    public static String readValidText(Scanner scanner, String prompt) {
+        while (true) {
+            String input = readNonEmptyString(scanner, prompt);
+            if (!input.matches(".*[a-zA-Z].*")) {
+                System.out.println("❌ Error: Must contain at least one letter, not just numbers/symbols.");
+                continue;
+            }
+            return input;
+        }
+    }
     /** Re-prompts until the user enters text matching a valid TaskStatus label. */
     public static TaskStatus readValidStatus(Scanner scanner, String prompt) {
         while (true) {

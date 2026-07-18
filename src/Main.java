@@ -121,8 +121,8 @@ public class Main {
         System.out.println("2. Hardware Project");
         int typeChoice = ValidationUtils.readInt(scanner, "Select type (1-2): ");
 
-        String name = ValidationUtils.readNonEmptyString(scanner, "Enter project name: ");
-        String description = ValidationUtils.readNonEmptyString(scanner, "Enter project description: ");
+        String name = ValidationUtils.readValidText(scanner, "Enter project name: ");
+        String description = ValidationUtils.readValidText(scanner, "Enter project description: ");
         double budget = ValidationUtils.readPositiveDouble(scanner, "Enter project budget: $");
         int teamSize = ValidationUtils.readPositiveInt(scanner, "Enter team size: ");
 
@@ -280,7 +280,7 @@ public class Main {
     /** Prompts for task details (rejecting duplicate names) and adds it to the given project. */
     private static void addTaskToProject(Project project) {
         ConsoleMenu.printHeader("ADD NEW TASK");
-        String name = ValidationUtils.readNonEmptyString(scanner, "\nEnter task name: ");
+        String name = ValidationUtils.readValidText(scanner, "\nEnter task name: ");
 
         try {
             if (project.hasTaskNamed(name)) {
@@ -420,7 +420,7 @@ public class Main {
             System.out.println("❌ Error: Please enter 1 or 2.");
         }
 
-        String name = ValidationUtils.readNonEmptyString(scanner, "Enter user name: ");
+        String name = ValidationUtils.readValidText(scanner, "Enter user name: ");
 
         while (true) {
             String email = ValidationUtils.readNonEmptyString(scanner, "Enter user email: ");
