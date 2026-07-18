@@ -14,6 +14,11 @@ import services.ReportService;
 import services.TaskService;
 import utils.ConsoleMenu;
 import utils.ValidationUtils;
+import utils.exceptions.EmptyProjectException;
+import utils.exceptions.InvalidInputException;
+import utils.exceptions.InvalidProjectDataException;
+import utils.exceptions.ProjectNotFoundException;
+import utils.exceptions.TaskNotFoundException;
 
 /**
  * Application entry point: the menu-driven console UI wiring together every
@@ -30,8 +35,16 @@ public class Main {
     private static final User[] users = new User[2];
     private static User currentUser;
 
-    /** Seeds sample data, then loops the main menu until the user exits. */
-    public static void main(String[] args) {
+    /**
+     * Seeds sample data, then loops the main menu until the user exits.
+     *
+     * @throws InvalidProjectDataException never in practice - the seed data
+     *         below is hardcoded and always valid. Declared because
+     *         Project's constructor is checked; if this ever DID fire, it
+     *         would mean the seed data itself has a bug, so letting it
+     *         propagate and halt the program loudly is the right behavior.
+     */
+    public static void main(String[] args) throws InvalidProjectDataException {
         seedSampleData();
         boolean running = true;
 
@@ -56,8 +69,7 @@ public class Main {
                     manageTasks();
                     break;
                 case 3:
-                    reportService.printStatusReport();
-                    ConsoleMenu.pause(scanner);
+                    manageReports();
                     break;
                 case 4:
                     switchUser();
@@ -112,12 +124,18 @@ public class Main {
         int teamSize = ValidationUtils.readPositiveInt(scanner, "Enter team size: ");
 
         Project project;
-        if (typeChoice == 1) {
-            project = new SoftwareProject(name, description, budget, teamSize);
-        } else if (typeChoice == 2) {
-            project = new HardwareProject(name, description, budget, teamSize);
-        } else {
-            System.out.println("❌ Invalid project type selected.");
+        try {
+            if (typeChoice == 1) {
+                project = new SoftwareProject(name, description, budget, teamSize);
+            } else if (typeChoice == 2) {
+                project = new HardwareProject(name, description, budget, teamSize);
+            } else {
+                System.out.println("❌ Invalid project type selected.");
+                return;
+            }
+        } catch (InvalidProjectDataException e) {
+            ConsoleMenu.printError(e);
+            ConsoleMenu.pause(scanner);
             return;
         }
 
@@ -138,21 +156,27 @@ public class Main {
         int filterChoice = ValidationUtils.readInt(scanner, "\nEnter filter choice: ");
         Project[] results;
 
-        switch (filterChoice) {
-            case 2:
-                results = projectService.getProjectsByType(ProjectType.SOFTWARE);
-                break;
-            case 3:
-                results = projectService.getProjectsByType(ProjectType.HARDWARE);
-                break;
-            case 4:
-                double min = ValidationUtils.readNonNegativeDouble(scanner, "Enter minimum budget: $");
-                double max = ValidationUtils.readPositiveDouble(scanner, "Enter maximum budget: $");
-                results = projectService.searchByBudgetRange(min, max);
-                break;
-            case 1:
-            default:
-                results = projectService.getAllProjects();
+        try {
+            switch (filterChoice) {
+                case 2:
+                    results = projectService.getProjectsByType(ProjectType.SOFTWARE);
+                    break;
+                case 3:
+                    results = projectService.getProjectsByType(ProjectType.HARDWARE);
+                    break;
+                case 4:
+                    double min = ValidationUtils.readNonNegativeDouble(scanner, "Enter minimum budget: $");
+                    double max = ValidationUtils.readPositiveDouble(scanner, "Enter maximum budget: $");
+                    results = projectService.searchByBudgetRange(min, max);
+                    break;
+                case 1:
+                default:
+                    results = projectService.getAllProjects();
+            }
+        } catch (InvalidInputException e) {
+            ConsoleMenu.printError(e);
+            ConsoleMenu.pause(scanner);
+            return;
         }
 
         System.out.println();
@@ -179,9 +203,11 @@ public class Main {
 
     /** Shows one project's full details and tasks, looping its own submenu until "back". */
     private static void viewProjectDetails(String projectId) {
-        Project project = projectService.findProject(projectId);
-        if (project == null) {
-            System.out.println("❌ Error: Invalid input. Please enter a valid project ID (e.g., PRJ001).");
+        Project project;
+        try {
+            project = projectService.findProject(projectId);
+        } catch (ProjectNotFoundException e) {
+            ConsoleMenu.printError(e);
             ConsoleMenu.pause(scanner);
             return;
         }
@@ -238,15 +264,13 @@ public class Main {
 
     // ================= Epic 2: Task Operations =================
 
-    /** Entry point for "Manage Tasks" from the main menu: pick a project by ID first. */
+    /**
+     * Entry point for "Manage Tasks" from the main menu: pick a project by ID
+     * first. The not-found case is handled once, inside viewProjectDetails()
+     * itself, rather than being checked redundantly here too.
+     */
     private static void manageTasks() {
         String projectId = ValidationUtils.readNonEmptyString(scanner, "\nEnter assigned project ID: ");
-        Project project = projectService.findProject(projectId);
-        if (project == null) {
-            System.out.println("❌ Error: Invalid input. Please enter a valid numeric or prefixed ID (e.g., PRJ001).");
-            ConsoleMenu.pause(scanner);
-            return;
-        }
         viewProjectDetails(projectId);
     }
 
@@ -297,19 +321,19 @@ public class Main {
             return;
         }
         String taskId = ValidationUtils.readNonEmptyString(scanner, "\nEnter task ID: ");
-        Task task = taskService.findTaskAnywhere(taskId);
-        if (task == null || !project.getId().equals(taskService.findProjectOwningTask(taskId).getId())) {
-            System.out.println("❌ Error: Task not found in this project.");
-            ConsoleMenu.pause(scanner);
-            return;
+        try {
+            Task task = taskService.getTaskInProject(project, taskId);
+            TaskStatus newStatus = ValidationUtils.readValidStatus(scanner, "Enter new status: ");
+            task.setStatus(newStatus);
+            System.out.println("\n✓ Task \"" + task.getName() + "\" marked as " + newStatus.getLabel() + ".");
+        } catch (TaskNotFoundException e) {
+            ConsoleMenu.printError(e);
+            System.out.println("Operation aborted. Returning to task menu...");
         }
-        TaskStatus newStatus = ValidationUtils.readValidStatus(scanner, "Enter new status: ");
-        task.setStatus(newStatus);
-        System.out.println("\n✓ Task \"" + task.getName() + "\" marked as " + newStatus.getLabel() + ".");
         ConsoleMenu.pause(scanner);
     }
 
-    /** Admin-only: removes a task by ID (searched system-wide via TaskService). */
+    /** Admin-only: removes a task by ID from this specific project. */
     private static void removeTaskFromProject(Project project) {
         // ROLE-BASED ACCESS (Epic 3): only Admin users may delete.
         if (!currentUser.canModify()) {
@@ -318,11 +342,11 @@ public class Main {
             return;
         }
         String taskId = ValidationUtils.readNonEmptyString(scanner, "\nEnter task ID to remove: ");
-        boolean removed = taskService.removeTask(taskId);
-        if (removed) {
+        try {
+            taskService.removeTaskFromProject(project, taskId);
             System.out.println("\n✓ Task removed successfully.");
-        } else {
-            System.out.println("❌ Error: Task not found in this project.");
+        } catch (TaskNotFoundException e) {
+            ConsoleMenu.printError(e);
         }
         ConsoleMenu.pause(scanner);
     }
@@ -345,10 +369,54 @@ public class Main {
         ConsoleMenu.pause(scanner);
     }
 
+    // ================= Epic 4: Status Processing & Reporting =================
+
+    /** "View Status Reports" submenu: the full table, or one project's completion on demand. */
+    private static void manageReports() {
+        ConsoleMenu.printHeader("STATUS REPORTS");
+        System.out.println("\nOptions:");
+        System.out.println("1. View Full Status Report");
+        System.out.println("2. Check Single Project Completion");
+        System.out.println("3. Back to Main Menu");
+
+        int choice = ValidationUtils.readInt(scanner, "\nEnter your choice: ");
+        switch (choice) {
+            case 1:
+                reportService.printStatusReport();
+                ConsoleMenu.pause(scanner);
+                break;
+            case 2:
+                checkSingleProjectCompletion();
+                break;
+            case 3:
+                return;
+            default:
+                System.out.println("Invalid choice.");
+        }
+    }
+
+    /**
+     * Looks up one project and reports its completion percentage, distinct
+     * from the aggregate table: a project with zero tasks is treated as
+     * exceptional here (EmptyProjectException) rather than a valid 0.00%.
+     */
+    private static void checkSingleProjectCompletion() {
+        ConsoleMenu.printHeader("CALCULATE PROJECT COMPLETION");
+        String projectId = ValidationUtils.readNonEmptyString(scanner, "\nEnter project ID: ");
+        try {
+            Project project = projectService.findProject(projectId);
+            double percentage = reportService.checkCompletion(project);
+            System.out.printf("%n✓ Project \"%s\" is %.2f%% complete.%n", project.getName(), percentage);
+        } catch (ProjectNotFoundException | EmptyProjectException e) {
+            ConsoleMenu.printError(e);
+        }
+        ConsoleMenu.pause(scanner);
+    }
+
     // ================= Sample data seeding =================
 
     /** Populates 2 sample users and 5 sample projects with tasks, for demo purposes. */
-    private static void seedSampleData() {
+    private static void seedSampleData() throws InvalidProjectDataException {
         users[0] = new AdminUser("Alice Johnson", "alice.johnson@amalitech.dev");
         users[1] = new RegularUser("Bob Kariuki", "bob.kariuki@amalitech.dev");
         currentUser = users[0];

@@ -2,6 +2,7 @@ package models.project;
 
 import enums.ProjectType;
 import models.Task;
+import utils.exceptions.InvalidProjectDataException;
 
 /**
  * Abstract base class for a project. Owns its own array of tasks and the
@@ -22,7 +23,20 @@ public abstract class Project {
 
     private static int projectCounter = 0;
 
-    protected Project(String name, String description, double budget, int teamSize) {
+    /**
+     * @throws InvalidProjectDataException if budget or teamSize is not positive.
+     *         The interactive console flow already prevents this via
+     *         ValidationUtils, so this guards the invariant regardless of caller
+     *         (e.g. direct construction from a unit test).
+     */
+    protected Project(String name, String description, double budget, int teamSize)
+            throws InvalidProjectDataException {
+        if (budget <= 0) {
+            throw new InvalidProjectDataException("Budget must be greater than 0.");
+        }
+        if (teamSize <= 0) {
+            throw new InvalidProjectDataException("Team size must be greater than 0.");
+        }
         projectCounter++;
         this.id = String.format("PRJ%03d", projectCounter);
         this.name = name;
