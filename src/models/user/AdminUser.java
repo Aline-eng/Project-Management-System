@@ -1,9 +1,11 @@
 package models.user;
 
+import utils.exceptions.InvalidUserDataException;
+
 /** An administrator: full access, including update and delete. */
 public class AdminUser extends User {
 
-    public AdminUser(String name, String email) {
+    public AdminUser(String name, String email) throws InvalidUserDataException {
         super(name, email, "Admin");
     }
 

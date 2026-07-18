@@ -17,6 +17,7 @@ import utils.ValidationUtils;
 import utils.exceptions.EmptyProjectException;
 import utils.exceptions.InvalidInputException;
 import utils.exceptions.InvalidProjectDataException;
+import utils.exceptions.InvalidUserDataException;
 import utils.exceptions.ProjectNotFoundException;
 import utils.exceptions.TaskNotFoundException;
 
@@ -40,11 +41,12 @@ public class Main {
      *
      * @throws InvalidProjectDataException never in practice - the seed data
      *         below is hardcoded and always valid. Declared because
-     *         Project's constructor is checked; if this ever DID fire, it
-     *         would mean the seed data itself has a bug, so letting it
-     *         propagate and halt the program loudly is the right behavior.
+     *         Project's and User's constructors are checked; if this ever
+     *         DID fire, it would mean the seed data itself has a bug, so
+     *         letting it propagate and halt the program loudly is correct.
+     * @throws InvalidUserDataException never in practice, same reason as above.
      */
-    public static void main(String[] args) throws InvalidProjectDataException {
+    public static void main(String[] args) throws InvalidProjectDataException, InvalidUserDataException {
         seedSampleData();
         boolean running = true;
 
@@ -279,8 +281,12 @@ public class Main {
         ConsoleMenu.printHeader("ADD NEW TASK");
         String name = ValidationUtils.readNonEmptyString(scanner, "\nEnter task name: ");
 
-        if (project.hasTaskNamed(name)) {
-            System.out.println("❌ Error: A task with this name already exists in this project.");
+        try {
+            if (project.hasTaskNamed(name)) {
+                throw new InvalidInputException("A task named \"" + name + "\" already exists in this project.");
+            }
+        } catch (InvalidInputException e) {
+            ConsoleMenu.printError(e);
             ConsoleMenu.pause(scanner);
             return;
         }
@@ -416,7 +422,7 @@ public class Main {
     // ================= Sample data seeding =================
 
     /** Populates 2 sample users and 5 sample projects with tasks, for demo purposes. */
-    private static void seedSampleData() throws InvalidProjectDataException {
+    private static void seedSampleData() throws InvalidProjectDataException, InvalidUserDataException {
         users[0] = new AdminUser("Alice Johnson", "alice.johnson@amalitech.dev");
         users[1] = new RegularUser("Bob Kariuki", "bob.kariuki@amalitech.dev");
         currentUser = users[0];
