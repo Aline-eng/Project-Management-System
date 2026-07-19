@@ -3,6 +3,7 @@ package services;
 import models.project.Project;
 import models.StatusReport;
 import utils.ConsoleMenu;
+import utils.exceptions.EmptyProjectException;
 
 /**
  * Builds and prints completion reports aggregated across every project.
@@ -39,6 +40,23 @@ public class ReportService {
         double average = sum / projects.length;
         return Math.round(average * 100.0) / 100.0;
     }
+    /**
+     * Checks a single project's completion percentage on demand. Unlike the
+     * aggregate status report (which shows every project, including empty
+     * ones, at 0.00%), this is treated as a distinct, explicit request that
+     * doesn't make sense to answer for a project with no tasks defined yet.
+     *
+     * @throws EmptyProjectException if the project has zero tasks
+     */
+    public double checkCompletion(Project project) throws EmptyProjectException {
+        if (project.getTaskCount() == 0) {
+            throw new EmptyProjectException(
+                    "Project '" + project.getName() + "' has no tasks yet - nothing to calculate.");
+        }
+        return project.getCompletionPercentage();
+    }
+
+    /** Prints the full aggregate status report table for every project. */
     public void printStatusReport() {
         ConsoleMenu.printHeader("PROJECT STATUS REPORT");
         ConsoleMenu.printDivider();
@@ -58,5 +76,7 @@ public class ReportService {
         ConsoleMenu.printDivider();
         System.out.printf("AVERAGE COMPLETION: %.2f%%%n", calculateAverageCompletion());
         ConsoleMenu.printDivider();
+
+        System.out.println("\n ✓ Report generated successfully.");
     }
 }

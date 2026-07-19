@@ -2,6 +2,8 @@ package services;
 
 import enums.ProjectType;
 import models.project.Project;
+import utils.exceptions.InvalidInputException;
+import utils.exceptions.ProjectNotFoundException;
 
 /**
  * Owns the in-memory project catalog: storage, lookup, and filtering.
@@ -30,15 +32,16 @@ public class ProjectService {
     }
 
     /**
-     * @return the matching project, or null if no project with this ID exists
+     * @return the matching project
+     * @throws ProjectNotFoundException if no project with this ID exists
      */
-    public Project findProject(String projectId) {
+    public Project findProject(String projectId) throws ProjectNotFoundException {
         for (int i = 0; i < projectCount; i++) {
             if (projects[i].getId().equalsIgnoreCase(projectId)) {
                 return projects[i];
             }
         }
-        return null;
+        throw new ProjectNotFoundException("Project ID '" + projectId + "' does not exist.");
     }
 
     /**
@@ -73,8 +76,13 @@ public class ProjectService {
     }
     /**
      * @return every project whose budget falls within [min, max] inclusive
+     * @throws InvalidInputException if min is greater than max
      */
-    public Project[] searchByBudgetRange(double min, double max) {
+    public Project[] searchByBudgetRange(double min, double max) throws InvalidInputException {
+        if (min > max) {
+            throw new InvalidInputException(
+                    "Minimum budget ($" + min + ") cannot exceed maximum budget ($" + max + ").");
+        }
         int matchCount = 0;
         for (int i = 0; i < projectCount; i++) {
             double budget = projects[i].getBudget();

@@ -12,8 +12,15 @@ import enums.ProjectType;
 import services.ProjectService;
 import services.ReportService;
 import services.TaskService;
+import services.UserService;
 import utils.ConsoleMenu;
 import utils.ValidationUtils;
+import utils.exceptions.EmptyProjectException;
+import utils.exceptions.InvalidInputException;
+import utils.exceptions.InvalidProjectDataException;
+import utils.exceptions.InvalidUserDataException;
+import utils.exceptions.ProjectNotFoundException;
+import utils.exceptions.TaskNotFoundException;
 
 /**
  * Application entry point: the menu-driven console UI wiring together every
@@ -26,12 +33,21 @@ public class Main {
     private static final ProjectService projectService = new ProjectService();
     private static final TaskService taskService = new TaskService(projectService);
     private static final ReportService reportService = new ReportService(projectService);
+    private static final UserService userService = new UserService();
 
-    private static final User[] users = new User[2];
     private static User currentUser;
 
-    /** Seeds sample data, then loops the main menu until the user exits. */
-    public static void main(String[] args) {
+    /**
+     * Seeds sample data, then loops the main menu until the user exits.
+     *
+     * @throws InvalidProjectDataException never in practice - the seed data
+     *         below is hardcoded and always valid. Declared because
+     *         Project's and User's constructors are checked; if this ever
+     *         DID fire, it would mean the seed data itself has a bug, so
+     *         letting it propagate and halt the program loudly is correct.
+     * @throws InvalidUserDataException never in practice, same reason as above.
+     */
+    public static void main(String[] args) throws InvalidProjectDataException, InvalidUserDataException {
         seedSampleData();
         boolean running = true;
 
@@ -43,7 +59,7 @@ public class Main {
             System.out.println("1. Manage Projects");
             System.out.println("2. Manage Tasks");
             System.out.println("3. View Status Reports");
-            System.out.println("4. Switch User");
+            System.out.println("4. Manage Users");
             System.out.println("5. Exit");
 
             int choice = ValidationUtils.readInt(scanner, "\nEnter your choice: ");
@@ -56,14 +72,13 @@ public class Main {
                     manageTasks();
                     break;
                 case 3:
-                    reportService.printStatusReport();
-                    ConsoleMenu.pause(scanner);
+                    manageReports();
                     break;
                 case 4:
-                    switchUser();
+                    manageUsers();
                     break;
                 case 5:
-                    System.out.println("\nThank you for using the Java Project Management System!");
+                    System.out.println("\nThank you for using the JAVA Project Management System!");
                     System.out.println("Goodbye!");
                     running = false;
                     break;
@@ -104,25 +119,30 @@ public class Main {
         System.out.println("\nProject type:");
         System.out.println("1. Software Project");
         System.out.println("2. Hardware Project");
-        int typeChoice = ValidationUtils.readInt(scanner, "Select type (1-2): ");
+        int typeChoice = ValidationUtils.readIntInRange(scanner, "Select type (1-2): ", 1, 2);
 
-        String name = ValidationUtils.readNonEmptyString(scanner, "Enter project name: ");
-        String description = ValidationUtils.readNonEmptyString(scanner, "Enter project description: ");
+        String name = ValidationUtils.readValidText(scanner, "Enter project name: ");
+        String description = ValidationUtils.readValidText(scanner, "Enter project description: ");
         double budget = ValidationUtils.readPositiveDouble(scanner, "Enter project budget: $");
         int teamSize = ValidationUtils.readPositiveInt(scanner, "Enter team size: ");
 
         Project project;
-        if (typeChoice == 1) {
-            project = new SoftwareProject(name, description, budget, teamSize);
-        } else if (typeChoice == 2) {
-            project = new HardwareProject(name, description, budget, teamSize);
-        } else {
-            System.out.println("❌ Invalid project type selected.");
+        try {
+            project = (typeChoice == 1)
+                    ? new SoftwareProject(name, description, budget, teamSize)
+                    : new HardwareProject(name, description, budget, teamSize);
+        } catch (InvalidProjectDataException e) {
+            // Never actually reachable here - ValidationUtils above already guarantees a
+            // positive budget and team size. Kept as a guard on Project itself (see
+            // Project's constructor) for any caller that isn't this console UI, e.g. a
+            // future JUnit test constructing a project directly with bad data.
+            ConsoleMenu.printError(e);
+            ConsoleMenu.pause(scanner);
             return;
         }
 
         projectService.addProject(project);
-        System.out.println("\n✓ Project successfully created. (ID: " + project.getId() + ")");
+        System.out.println("\n✓ Project \"" + name + "\" successfully created. (ID: " + project.getId() + ")");
         ConsoleMenu.pause(scanner);
     }
 
@@ -146,9 +166,7 @@ public class Main {
                 results = projectService.getProjectsByType(ProjectType.HARDWARE);
                 break;
             case 4:
-                double min = ValidationUtils.readNonNegativeDouble(scanner, "Enter minimum budget: $");
-                double max = ValidationUtils.readPositiveDouble(scanner, "Enter maximum budget: $");
-                results = projectService.searchByBudgetRange(min, max);
+                results = searchByBudgetRangeWithRetry();
                 break;
             case 1:
             default:
@@ -170,22 +188,51 @@ public class Main {
             }
         }
 
-        String projectId = ValidationUtils.readNonEmptyString(
-                scanner, "\nEnter project ID to view details (or 0 to return): ");
-        if (!projectId.equals("0")) {
-            viewProjectDetails(projectId);
+        Project project = promptForProject("\nEnter project ID to view details (or 0 to return): ");
+        if (project != null) {
+            viewProjectDetails(project);
+        }
+    }
+
+    /**
+     * Keeps re-prompting for a min/max budget until the range is valid,
+     * instead of aborting the whole catalog view on one bad entry.
+     */
+    private static Project[] searchByBudgetRangeWithRetry() {
+        while (true) {
+            double min = ValidationUtils.readNonNegativeDouble(scanner, "Enter minimum budget: $");
+            double max = ValidationUtils.readPositiveDouble(scanner, "Enter maximum budget: $");
+            try {
+                return projectService.searchByBudgetRange(min, max);
+            } catch (InvalidInputException e) {
+                ConsoleMenu.printError(e);
+            }
+        }
+    }
+
+    /**
+     * Repeatedly prompts for a project ID until a valid one is found or the
+     * user cancels with "0" - keeps them in the current flow instead of
+     * bouncing them back out on a typo.
+     *
+     * @return the matching project, or null if the user cancelled
+     */
+    private static Project promptForProject(String prompt) {
+        while (true) {
+            String projectId = ValidationUtils.readNonEmptyString(scanner, prompt);
+            if (projectId.equals("0")) {
+                return null;
+            }
+            try {
+                return projectService.findProject(projectId);
+            } catch (ProjectNotFoundException e) {
+                ConsoleMenu.printError(e);
+            }
         }
     }
 
     /** Shows one project's full details and tasks, looping its own submenu until "back". */
-    private static void viewProjectDetails(String projectId) {
-        Project project = projectService.findProject(projectId);
-        if (project == null) {
-            System.out.println("❌ Error: Invalid input. Please enter a valid project ID (e.g., PRJ001).");
-            ConsoleMenu.pause(scanner);
-            return;
-        }
-
+    private static void viewProjectDetails(Project project) {
         boolean viewing = true;
         while (viewing) {
             ConsoleMenu.printHeader("PROJECT DETAILS: " + project.getId());
@@ -240,26 +287,16 @@ public class Main {
 
     /** Entry point for "Manage Tasks" from the main menu: pick a project by ID first. */
     private static void manageTasks() {
-        String projectId = ValidationUtils.readNonEmptyString(scanner, "\nEnter assigned project ID: ");
-        Project project = projectService.findProject(projectId);
-        if (project == null) {
-            System.out.println("❌ Error: Invalid input. Please enter a valid numeric or prefixed ID (e.g., PRJ001).");
-            ConsoleMenu.pause(scanner);
-            return;
+        Project project = promptForProject("\nEnter assigned project ID (or 0 to cancel): ");
+        if (project != null) {
+            viewProjectDetails(project);
         }
-        viewProjectDetails(projectId);
     }
 
     /** Prompts for task details (rejecting duplicate names) and adds it to the given project. */
     private static void addTaskToProject(Project project) {
         ConsoleMenu.printHeader("ADD NEW TASK");
-        String name = ValidationUtils.readNonEmptyString(scanner, "\nEnter task name: ");
-
-        if (project.hasTaskNamed(name)) {
-            System.out.println("❌ Error: A task with this name already exists in this project.");
-            ConsoleMenu.pause(scanner);
-            return;
-        }
+        String name = readUniqueTaskName(project);
 
         TaskStatus status = ValidationUtils.readValidStatus(
                 scanner, "Enter initial status (Pending/In Progress/Completed): ");
@@ -271,20 +308,62 @@ public class Main {
         ConsoleMenu.pause(scanner);
     }
 
-    /** Prompts for a user ID and returns the matching User, re-prompting until valid. */
+    /** Keeps re-prompting for a task name until it doesn't already exist in this project. */
+    private static String readUniqueTaskName(Project project) {
+        while (true) {
+            String name = ValidationUtils.readValidText(scanner, "\nEnter task name: ");
+            try {
+                if (project.hasTaskNamed(name)) {
+                    throw new InvalidInputException("A task named \"" + name + "\" already exists in this project.");
+                }
+                return name;
+            } catch (InvalidInputException e) {
+                ConsoleMenu.printError(e);
+            }
+        }
+    }
+
+    /**
+     * Prompts for a user ID and returns the matching User, or null if the
+     * user chooses to leave the task unassigned (entering "0").
+     */
     private static User selectUser() {
         System.out.println("\nAvailable Users:");
-        for (User user : users) {
+        for (User user : userService.getAllUsers()) {
             System.out.println(user.getId() + " - " + user.getName() + " (" + user.getRole() + ")");
         }
         while (true) {
-            String input = ValidationUtils.readNonEmptyString(scanner, "Assign to user ID: ");
-            for (User user : users) {
+            String input = ValidationUtils.readNonEmptyString(
+                    scanner, "Assign to user ID (or 0 to leave unassigned): ");
+            if (input.equals("0")) {
+                return null;
+            }
+            for (User user : userService.getAllUsers()) {
                 if (user.getId().equalsIgnoreCase(input)) {
                     return user;
                 }
             }
             System.out.println("❌ Error: No user found with ID \"" + input + "\".");
+        }
+    }
+
+    /**
+     * Repeatedly prompts for a task ID within this project until one is
+     * found or the user cancels with "0".
+     *
+     * @return the matching task, or null if the user cancelled
+     */
+    private static Task promptForTask(Project project, String prompt) {
+        while (true) {
+            String taskId = ValidationUtils.readNonEmptyString(scanner, prompt);
+            if (taskId.equals("0")) {
+                return null;
+            }
+            try {
+                return taskService.getTaskInProject(project, taskId);
+            } catch (TaskNotFoundException e) {
+                ConsoleMenu.printError(e);
+            }
         }
     }
 
@@ -296,11 +375,8 @@ public class Main {
             ConsoleMenu.pause(scanner);
             return;
         }
-        String taskId = ValidationUtils.readNonEmptyString(scanner, "\nEnter task ID: ");
-        Task task = taskService.findTaskAnywhere(taskId);
-        if (task == null || !project.getId().equals(taskService.findProjectOwningTask(taskId).getId())) {
-            System.out.println("❌ Error: Task not found in this project.");
-            ConsoleMenu.pause(scanner);
+        Task task = promptForTask(project, "\nEnter task ID (or 0 to cancel): ");
+        if (task == null) {
             return;
         }
         TaskStatus newStatus = ValidationUtils.readValidStatus(scanner, "Enter new status: ");
@@ -309,7 +385,7 @@ public class Main {
         ConsoleMenu.pause(scanner);
     }
 
-    /** Admin-only: removes a task by ID (searched system-wide via TaskService). */
+    /** Admin-only: removes a task by ID from this specific project. */
     private static void removeTaskFromProject(Project project) {
         // ROLE-BASED ACCESS (Epic 3): only Admin users may delete.
         if (!currentUser.canModify()) {
@@ -317,20 +393,50 @@ public class Main {
             ConsoleMenu.pause(scanner);
             return;
         }
-        String taskId = ValidationUtils.readNonEmptyString(scanner, "\nEnter task ID to remove: ");
-        boolean removed = taskService.removeTask(taskId);
-        if (removed) {
+        Task task = promptForTask(project, "\nEnter task ID to remove (or 0 to cancel): ");
+        if (task == null) {
+            return;
+        }
+        try {
+            taskService.removeTaskFromProject(project, task.getId());
             System.out.println("\n✓ Task removed successfully.");
-        } else {
-            System.out.println("❌ Error: Task not found in this project.");
+        } catch (TaskNotFoundException e) {
+            // Not reachable in practice - promptForTask() just confirmed this task
+            // exists in this project. Handled anyway since removeTaskFromProject()
+            // is a checked call the compiler requires us to address.
+            ConsoleMenu.printError(e);
         }
         ConsoleMenu.pause(scanner);
     }
 
     // ================= Epic 3: User Management =================
 
-    /** Lets the user pick which of the two seeded users is "logged in." */
+    /** "Manage Users" submenu: switch the active user, or register a new one. */
+    private static void manageUsers() {
+        ConsoleMenu.printHeader("MANAGE USERS");
+        System.out.println("\nOptions:");
+        System.out.println("1. Switch User");
+        System.out.println("2. Add New User");
+        System.out.println("3. Back to Main Menu");
+
+        int choice = ValidationUtils.readInt(scanner, "\nEnter your choice: ");
+        switch (choice) {
+            case 1:
+                switchUser();
+                break;
+            case 2:
+                addUser();
+                break;
+            case 3:
+                return;
+            default:
+                System.out.println("Invalid choice.");
+        }
+    }
+
+    /** Lets the user pick which registered user is "logged in." */
     private static void switchUser() {
+        User[] users = userService.getAllUsers();
         System.out.println("\nAvailable Users:");
         for (int i = 0; i < users.length; i++) {
             System.out.println((i + 1) + ". " + users[i].getName() + " (" + users[i].getRole() + ")");
@@ -345,22 +451,103 @@ public class Main {
         ConsoleMenu.pause(scanner);
     }
 
+    /**
+     * Prompts for a new user's role, name, and email, and registers them.
+     * Role is chosen from a fixed menu so it can never itself be invalid;
+     * email is free text and goes through User's own validation, re-prompting
+     * in place via InvalidUserDataException until it looks like a real email.
+     */
+    private static void addUser() {
+        ConsoleMenu.printHeader("ADD NEW USER");
+        System.out.println("\nRole:");
+        System.out.println("1. Admin");
+        System.out.println("2. Regular");
+        int roleChoice = ValidationUtils.readIntInRange(scanner, "Select role (1-2): ", 1, 2);
+
+        String name = ValidationUtils.readValidText(scanner, "Enter user name: ");
+
+        while (true) {
+            String email = ValidationUtils.readNonEmptyString(scanner, "Enter user email: ");
+            try {
+                User newUser = (roleChoice == 1) ? new AdminUser(name, email) : new RegularUser(name, email);
+                userService.addUser(newUser);
+                System.out.println("\n✓ User \"" + name + "\" created successfully. (ID: " + newUser.getId() + ")");
+                break;
+            } catch (InvalidUserDataException e) {
+                ConsoleMenu.printError(e);
+            }
+        }
+        ConsoleMenu.pause(scanner);
+    }
+
+    // ================= Epic 4: Status Processing & Reporting =================
+
+    /** "View Status Reports" submenu: the full table, or one project's completion on demand. */
+    private static void manageReports() {
+        ConsoleMenu.printHeader("STATUS REPORTS");
+        System.out.println("\nOptions:");
+        System.out.println("1. View Full Status Report");
+        System.out.println("2. Check Single Project Completion");
+        System.out.println("3. Back to Main Menu");
+
+        int choice = ValidationUtils.readInt(scanner, "\nEnter your choice: ");
+        switch (choice) {
+            case 1:
+                reportService.printStatusReport();
+                ConsoleMenu.pause(scanner);
+                break;
+            case 2:
+                checkSingleProjectCompletion();
+                break;
+            case 3:
+                return;
+            default:
+                System.out.println("Invalid choice.");
+        }
+    }
+
+    /**
+     * Looks up one project and reports its completion percentage. If the
+     * chosen project has no tasks (EmptyProjectException), lets the user
+     * pick a different project instead of just aborting to the main menu.
+     */
+    private static void checkSingleProjectCompletion() {
+        ConsoleMenu.printHeader("CALCULATE PROJECT COMPLETION");
+        while (true) {
+            Project project = promptForProject("\nEnter project ID (or 0 to cancel): ");
+            if (project == null) {
+                return;
+            }
+            try {
+                double percentage = reportService.checkCompletion(project);
+                System.out.printf("%n✓ Project \"%s\" is %.2f%% complete.%n", project.getName(), percentage);
+                break;
+            } catch (EmptyProjectException e) {
+                ConsoleMenu.printError(e);
+                // loop back and let them pick a different project
+            }
+        }
+        ConsoleMenu.pause(scanner);
+    }
+
     // ================= Sample data seeding =================
 
     /** Populates 2 sample users and 5 sample projects with tasks, for demo purposes. */
-    private static void seedSampleData() {
-        users[0] = new AdminUser("Alice Johnson", "alice.johnson@amalitech.dev");
-        users[1] = new RegularUser("Bob Kariuki", "bob.kariuki@amalitech.dev");
-        currentUser = users[0];
+    private static void seedSampleData() throws InvalidProjectDataException, InvalidUserDataException {
+        User alice = new AdminUser("Alice Johnson", "alice.johnson@amalitech.dev");
+        User bob = new RegularUser("Bob Kariuki", "bob.kariuki@amalitech.dev");
+        userService.addUser(alice);
+        userService.addUser(bob);
+        currentUser = alice;
 
         Project p1 = new SoftwareProject("Alpha Tracker", "Task tracking app for startups", 15000.00, 5);
-        p1.addTask(new Task("Design Database", TaskStatus.COMPLETED, users[1]));
-        p1.addTask(new Task("Implement API", TaskStatus.IN_PROGRESS, users[0]));
+        p1.addTask(new Task("Design Database", TaskStatus.COMPLETED, bob));
+        p1.addTask(new Task("Implement API", TaskStatus.IN_PROGRESS, alice));
         p1.addTask(new Task("Write Unit Tests", TaskStatus.PENDING));
         projectService.addProject(p1);
 
         Project p2 = new HardwareProject("IoT Sensor Kit", "Sensor prototype for smart devices", 10000.00, 3);
-        p2.addTask(new Task("Design Circuit", TaskStatus.COMPLETED, users[0]));
+        p2.addTask(new Task("Design Circuit", TaskStatus.COMPLETED, alice));
         p2.addTask(new Task("Assemble Prototype", TaskStatus.PENDING));
         projectService.addProject(p2);
 

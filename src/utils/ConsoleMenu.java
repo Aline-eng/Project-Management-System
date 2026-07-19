@@ -31,5 +31,14 @@ public final class ConsoleMenu {
         System.out.println("\nPress Enter to continue...");
         scanner.nextLine();
     }
-}
 
+    /**
+     * Prints a caught custom exception in one consistent format:
+     * "❌ Error: ExceptionSimpleName - message". Using getClass().getSimpleName()
+     * rather than a hardcoded string keeps the label correct automatically if
+     * an exception class is ever renamed.
+     */
+    public static void printError(Exception e) {
+        System.out.println("❌ Error: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+    }
+}

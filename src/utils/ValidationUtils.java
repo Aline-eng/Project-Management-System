@@ -36,6 +36,17 @@ public final class ValidationUtils {
             return value;
         }
     }
+    /** Re-prompts until the user enters a whole number between min and max (inclusive). */
+    public static int readIntInRange(Scanner scanner, String prompt, int min, int max) {
+        while (true) {
+            int value = readInt(scanner, prompt);
+            if (value < min || value > max) {
+                System.out.println("❌ Error: Please enter a number between " + min + " and " + max + ".");
+                continue;
+            }
+            return value;
+        }
+    }
     /** Re-prompts until the user enters a number greater than 0. */
     public static double readPositiveDouble(Scanner scanner, String prompt) {
         while (true) {
@@ -77,6 +88,22 @@ public final class ValidationUtils {
             String input = scanner.nextLine().trim();
             if (input.isEmpty()) {
                 System.out.println("❌ Error: This field cannot be empty.");
+                continue;
+            }
+            return input;
+        }
+    }
+    /**
+     * Re-prompts until the user enters text containing at least one letter -
+     * rejects blank input and input that is only digits/symbols (e.g. "12345"
+     * is not a reasonable project or task name). Digits are still allowed
+     * as part of the text (e.g. "Alpha Tracker 2024" is fine).
+     */
+    public static String readValidText(Scanner scanner, String prompt) {
+        while (true) {
+            String input = readNonEmptyString(scanner, prompt);
+            if (!input.matches(".*[a-zA-Z].*")) {
+                System.out.println("❌ Error: Must contain at least one letter, not just numbers/symbols.");
                 continue;
             }
             return input;
