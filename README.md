@@ -27,6 +27,24 @@ java -cp out Main
 The app starts with 5 sample projects and 2 sample users already loaded, so you can explore
 every feature immediately without any setup steps.
 
+### Running the JUnit tests
+
+No Maven/Gradle - JUnit 5 is added as a plain library, same as the rest of this project's setup.
+
+**IntelliJ IDEA:** open any file under `test/` (e.g. `test/ProjectTests.java`) and right-click
+inside it → **Run**. The first time you do this, IntelliJ will show a banner/lightbulb offering
+to **"Add 'JUnit5' to classpath"** - click it once (it downloads the library automatically) and
+every test class after that just works.
+
+**Command line:** download the single `junit-platform-console-standalone` jar once from
+[Maven Central](https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.10.2/junit-platform-console-standalone-1.10.2.jar),
+then:
+
+```bash
+javac -cp junit-platform-console-standalone-1.10.2.jar -d out $(find src test -name "*.java")
+java -jar junit-platform-console-standalone-1.10.2.jar --classpath out --scan-classpath
+```
+
 ### Default users
 
 | ID | Name | Role | Can update/delete tasks? |
