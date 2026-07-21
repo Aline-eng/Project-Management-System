@@ -7,5 +7,6 @@ package interfaces;
  */
 public interface Completable {
 
+    /** @return true if this item's work is finished, false otherwise */
     boolean isCompleted();
 }
