@@ -55,6 +55,7 @@ public class Task implements Completable {
         return assignedTo;
     }
 
+    /** Only COMPLETED counts as finished - PENDING and IN_PROGRESS are both still outstanding. */
     @Override
     public boolean isCompleted() {
         return status == TaskStatus.COMPLETED;

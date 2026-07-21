@@ -11,6 +11,7 @@ public class StatusReport {
     private final int completedTasks;
     private final double completionPercentage;
 
+    /** Builds one immutable row from already-computed project stats - no calculation happens here. */
     public StatusReport(String projectId, String projectName, int totalTasks,
                         int completedTasks, double completionPercentage) {
         this.projectId = projectId;

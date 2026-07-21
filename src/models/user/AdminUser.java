@@ -5,6 +5,7 @@ import utils.exceptions.InvalidUserDataException;
 /** An administrator: full access, including update and delete. */
 public class AdminUser extends User {
 
+    /** @throws InvalidUserDataException if name is blank or email is malformed - see User's constructor. */
     public AdminUser(String name, String email) throws InvalidUserDataException {
         super(name, email, "Admin");
     }

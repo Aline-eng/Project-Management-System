@@ -75,6 +75,7 @@ public abstract class User {
      */
     public abstract boolean canModify();
 
+    /** Prints this user's identity and role-based permissions as one block, not a table row. */
     public void displayUserInfo() {
         System.out.println("User ID: " + id);
         System.out.println("Name: " + name + " (" + role + ")");
